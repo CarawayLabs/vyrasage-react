@@ -1,52 +1,125 @@
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
 
-function App() {
+import React, { useState } from 'react';
+import './App.css';
+
+const App = () => {
+  const [question, setQuestion] = useState('');
+  const [response, setResponse] = useState('');
+  const [generatedSql, setGeneratedSql] = useState('');
+  const [feedback, setFeedback] = useState('');
+
+  const handleQuestionChange = (e) => {
+    setQuestion(e.target.value);
+  };
+
+  const handleFeedbackChange = (e) => {
+    setFeedback(e.target.value);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setResponse('Processing your request...');
+    setGeneratedSql('');
+
+    try {
+      const response = await fetch(process.env.REACT_APP_BACKEND_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ natural_language_question: question })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        setResponse(data.llm_summarization || 'No LLM Summary Produced.');
+        setGeneratedSql(data.generated_sql || 'No generated SQL.');
+      } else {
+        setResponse(`Error: ${data.error}`);
+        setGeneratedSql('');
+      }
+    } catch (error) {
+      setResponse(`Fetch error: ${error.message}`);
+      setGeneratedSql('');
+    }
+  };
+
+  const handleFeedbackSubmit = async (e) => {
+    e.preventDefault();
+    const payload = {
+      correlation_id: generateCorrelationId(),
+      customer_id: "CUST12345",
+      llm_step: "some_step",
+      original_question: question,
+      llm_generated_sql_select: generatedSql,
+      llm_summary: response,
+      information_about_success: feedback,
+      needed_improvements: feedback,
+    };
+
+    try {
+      const feedbackResponse = await fetch(process.env.REACT_APP_FEEDBACK_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (feedbackResponse.ok) {
+        alert('Feedback submitted successfully.');
+      } else {
+        alert('Error submitting feedback.');
+      }
+    } catch (error) {
+      alert(`Error submitting feedback: ${error.message}`);
+    }
+  };
+
+  const generateCorrelationId = () => {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+      const r = Math.random() * 16 | 0, v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+  };
+
   return (
-    <>
-      <div className="app min-h-screen text-blue-200 flex items-center flex-col p-20">
-        <div className="mb-10 grid grid-cols-4 grid-rows-2 w-1/2 mx-auto">
-          <img
-            className="col-span-2 row-span-3"
-            src={viteLogo}
-            alt="Vite Logo"
-            width="300"
-          />
-
-          <img
-            className="col-span-2 row-span-3 animate-spin m-auto"
-            style={{ animationDuration: "30s" }}
-            src={reactLogo}
-            alt="React Logo"
-            width="300"
+    <div className="container">
+      <h1>Vyrasage Co-Pilot</h1>
+      <form onSubmit={handleSubmit}>
+        <div className="input-box">
+          <textarea
+            placeholder="Ask your question here..."
+            value={question}
+            onChange={handleQuestionChange}
           />
         </div>
-        <h1 className='text-2xl lg:text-5xl mb-10 text-right text-blue'>
-          Welcome to Your New Vite + React App
-          <span className="block text-lg text-blue-400">on DigitalOcean</span>
-        </h1>
-        <div className="grid grid-cols-2 grid-rows-2 gap-4">
-
-          <a href="https://www.digitalocean.com/docs/app-platform"
-            className='py-3 px-6 bg-purple-400 hover:bg-purple-300
-              text-purple-800 hover:text-purple-900 block rounded
-              text-center shadow flex items-center justify-center
-              leading-snug text-xs transition ease-in duration-150'>
-            DigitalOcean Docs
-          </a>
-
-          <a href="https://cloud.digitalocean.com/apps"
-            className='py-3 px-6 bg-purple-400 hover:bg-purple-300
-              text-purple-800 hover:text-purple-900 block rounded
-              text-center shadow flex items-center justify-center
-              leading-snug text-xs transition ease-in duration-150'>
-            DigitalOcean Dashboard
-          </a>
+        <div className="button-container">
+          <button type="submit">Submit</button>
+          <button type="button" onClick={handleFeedbackSubmit}>Submit Feedback</button>
         </div>
+      </form>
+      <div className="response-box">
+        <textarea
+          placeholder="LLM Summary..."
+          value={response}
+          readOnly
+        />
       </div>
-    </>
-  )
-}
+      <div className="response-box">
+        <textarea
+          placeholder="Generated SQL..."
+          value={generatedSql}
+          readOnly
+        />
+      </div>
+      <div className="input-box">
+        <textarea
+          placeholder="Feedback..."
+          value={feedback}
+          onChange={handleFeedbackChange}
+        />
+      </div>
+    </div>
+  );
+};
 
-export default App
+export default App;

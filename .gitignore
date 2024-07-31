@@ -23,3 +23,6 @@ _static
 *.njsproj
 *.sln
 *.sw?
+
+# Environment file
+*.env
